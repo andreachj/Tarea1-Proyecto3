@@ -1,5 +1,7 @@
 package com.project.demo.rest.product;
 
+import com.project.demo.logic.entity.category.Category;
+import com.project.demo.logic.entity.category.CategoryRepository;
 import com.project.demo.logic.entity.product.Product;
 import com.project.demo.logic.entity.product.ProductRepository;
 import com.project.demo.logic.entity.user.User;
@@ -12,15 +14,19 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Optional;
 
 @RestController
-@RequestMapping("/products")
+@RequestMapping("/product")
 public class ProductRestController {
     @Autowired
     private ProductRepository productRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private CategoryRepository categoryRepository;
 
     @GetMapping
     @PreAuthorize("isAuthenticated()")
@@ -31,9 +37,20 @@ public class ProductRestController {
     @PostMapping
     @PreAuthorize("hasAnyRole('SUPER_ADMIN')")
     public Product addProduct(@RequestBody Product product) {
-        return productRepository.save(product);
-    }
+        Long categoryId = product.getCategoryId();  // Obtener el id de la categoría
 
+        if (categoryId == null) {
+            throw new IllegalArgumentException("Category ID must not be null");
+        }
+
+        Optional<Category> optionalCategory = categoryRepository.findById(categoryId);
+        if (optionalCategory.isPresent()) {
+            product.setCategory(optionalCategory.get());  // Asignar la categoría encontrada al producto
+            return productRepository.save(product);
+        } else {
+            throw new IllegalArgumentException("Category not found with id: " + categoryId);
+        }
+    }
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN')")
     public void deleteProduct(@PathVariable Long id) {
